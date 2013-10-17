@@ -1,10 +1,3 @@
-/*
- * tools.h
- *
- *  Created on: 2013/10/16
- *      Author: skgchxngsxyz-opensuse
- */
-
 #ifndef TOOLS_H_
 #define TOOLS_H_
 

@@ -1,10 +1,3 @@
-/*
- * GroupTable.h
- *
- *  Created on: 2013/10/16
- *      Author: skgchxngsxyz-opensuse
- */
-
 #ifndef GROUPTABLE_H_
 #define GROUPTABLE_H_
 
@@ -14,6 +7,7 @@
 
 typedef struct {
 	int procId;
+	char **cmds;
 	ProcConfig config;
 } ProcInfo;
 
@@ -31,9 +25,12 @@ typedef struct {
 } GroupTable;
 
 GroupTable *createGroupTable();
+
 int addNewGroupToTable(GroupTable *table, GroupConfig config);
 GroupInfo *getGroup(GroupTable *table, int groupId);
+int deleteGroupFromTable(GroupTable *table, int groupId);
 
 int addNewProcToGroup(GroupInfo *group, ProcConfig config, char **cmds);
+ProcInfo *getProc(GroupInfo *group, int procId);
 
 #endif /* GROUPTABLE_H_ */

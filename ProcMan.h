@@ -1,19 +1,19 @@
-/*
- * ProcMan.h
- *
- *  Created on: 2013/10/16
- *      Author: skgchxngsxyz-opensuse
- */
-
 #ifndef PROCMAN_H_
 #define PROCMAN_H_
 
-typedef struct {
+// process run type
+#define SYNC_RUN = 0;
+#define ASYNC_RUN = 1;
 
+
+typedef struct {
+	int cmdNum;
 } ProcConfig;
 
 typedef struct {
 	int procNum;
+	int runType;
+	// TODO: callback function
 } GroupConfig;
 
 
