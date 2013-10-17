@@ -34,14 +34,21 @@ int addNewGroupToTable(GroupTable *table, GroupConfig config)
 		groupInfo->procInfoArray[i] = NULL;
 	}
 
-	struct __table_entry *curEntry = table->entrys[GEN_GRUOP_INDEX(groupInfo->groupId)];
-	while(curEntry != NULL) {
-		curEntry = curEntry->nextEntry;
+	int index = GEN_GRUOP_INDEX(groupInfo->groupId);
+	struct __table_entry *newEntry = (struct __table_entry *)malloc(sizeof(struct __table_entry));
+	CHECK_ALLOCATION(newEntry);
+	newEntry->groupInfo = groupInfo;
+	newEntry->nextEntry = NULL;
+
+	if(table->entrys[index] == NULL) {
+		table->entrys[index] = newEntry;
+	} else {
+		struct __table_entry *curEntry = table->entrys[index];
+		while(curEntry->nextEntry != NULL) {
+			curEntry = curEntry->nextEntry;
+		}
+		curEntry->nextEntry = newEntry;
 	}
-	curEntry = (struct __table_entry *)malloc(sizeof(struct __table_entry));
-	CHECK_ALLOCATION(curEntry);
-	curEntry->groupInfo = groupInfo;
-	curEntry->nextEntry = NULL;
 	return groupInfo->groupId;
 }
 
@@ -87,15 +94,16 @@ int addNewProcToGroup(GroupInfo *group, ProcConfig config, char **cmds)
 	ProcInfo *procInfo = (ProcInfo *)malloc(sizeof(ProcInfo));
 	CHECK_ALLOCATION(procInfo);
 	procInfo->procId = ++count;
+	procInfo->exitType = -1;
 	procInfo->config = config;
-	procInfo->cmds = (char **)malloc(sizeof(char *) * procInfo->config.cmdNum);
+	procInfo->cmds = (char **)malloc(sizeof(char *) * (procInfo->config.cmdNum + 1));
 	CHECK_ALLOCATION(procInfo->cmds);
 	for(i = 0; i < procInfo->config.cmdNum; i++) {
-		int cmdSize = strlen(cmds[i]);
-		procInfo->cmds[i] = (char *)malloc(sizeof(char) * cmdSize);
+		procInfo->cmds[i] = (char *)malloc(sizeof(char) * MAX_CMD_SIZE);
 		CHECK_ALLOCATION(procInfo->cmds[i]);
-		strncpy(procInfo->cmds[i], cmds[i], cmdSize);
+		strncpy(procInfo->cmds[i], cmds[i], MAX_CMD_SIZE);
 	}
+	procInfo->cmds[procInfo->config.cmdNum] = NULL;
 
 	for(i = 0; i < group->config.procNum; i++) {
 		if(group->procInfoArray[i] == NULL) {

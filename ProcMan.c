@@ -42,3 +42,18 @@ int deleteProcGroup(int groupId)
 	return deleteGroupFromTable(groupTable, groupId);
 }
 
+int getExitStatus(int groupId)	//TODO: support signal exit
+{
+	GroupInfo *groupInfo = getGroup(groupTable, groupId);
+	return groupInfo->procInfoArray[groupInfo->config.procNum - 1]->exitStatus;
+}
+
+int getExitStatusAt(int groupId, int procId)	//TODO: support signal exit
+{
+	return getProc(getGroup(groupTable, groupId), procId)->exitStatus;
+}
+
+char *getOutMessage(int groupId)
+{
+	return getGroup(groupTable, groupId)->outMessage;
+}

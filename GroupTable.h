@@ -4,9 +4,16 @@
 #include "ProcMan.h"
 
 #define MAX_TABLE_SIZE 256
+#define MAX_CMD_SIZE 256
+
+// exit type
+#define NORMAL_EXIT 0
+#define INTR_EXIT 1
 
 typedef struct {
 	int procId;
+	int exitType;
+	int exitStatus;
 	char **cmds;
 	ProcConfig config;
 } ProcInfo;
@@ -15,6 +22,7 @@ typedef struct {
 	int groupId;
 	GroupConfig config;
 	ProcInfo **procInfoArray;
+	char *outMessage;
 } GroupInfo;
 
 typedef struct {
