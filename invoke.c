@@ -81,9 +81,9 @@ static void appendBuf(MessageBuffer *bufferList, char *buf, int index, int buffe
 	struct __bufferEntry *entry = (struct __bufferEntry *)malloc(sizeof(struct __bufferEntry));
 	entry->index = index;
 	entry->size = bufferSize;
-	entry->buf = (char *)malloc(sizeof(char) * BUFFER_SIZE);
+	entry->buf = (char *)malloc(sizeof(char) * bufferSize);
 	int i;
-	for(i = 0; i < BUFFER_SIZE; i++) {
+	for(i = 0; i < bufferSize; i++) {
 		entry->buf[i] = buf[i];
 	}
 	entry->nextEntry = NULL;
