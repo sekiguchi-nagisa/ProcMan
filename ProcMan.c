@@ -15,17 +15,28 @@ int initContext()
 
 int createProcGroup(GroupConfig config)
 {
-	if(groupTable == NULL) {
-		fprintf(stderr, "groupTable has not initialized yet\n");
-		return -1;
-	}
 	return addNewGroupToTable(groupTable, config);
 }
 
-int addProcToGroup(int groupId, ProcConfig config, char **cmds)
+int addProcToGroup(int groupId, int cmdNum, char **cmds)
 {
 	GroupInfo *groupInfo = getGroup(groupTable, groupId);
-	return addNewProcToGroup(groupInfo, config, cmds);
+	return addNewProcToGroup(groupInfo, cmdNum, cmds);
+}
+
+int setRedirect(int groupId, int procIndex, int fd, RedirectConfig *config)
+{
+	if(fd >= 0 && fd < 3) {
+		int index = fd;
+		ProcInfo *procInfo = getProc(getGroup(groupTable, groupId), procIndex);
+		if(procInfo == NULL) {
+			return -1;
+		}
+		procInfo->rconfigs[index] = config;
+		return 0;
+	}
+	fprintf(stderr, "invalid file descriptor: %d\n", fd);
+	return -1;
 }
 
 int invokeAll(int groupId)
@@ -45,15 +56,27 @@ int deleteProcGroup(int groupId)
 int getExitStatus(int groupId)	//TODO: support signal exit
 {
 	GroupInfo *groupInfo = getGroup(groupTable, groupId);
-	return groupInfo->procInfoArray[groupInfo->config.procNum - 1]->exitStatus;
+	if(groupInfo == NULL) {
+		return INVALID_STATUS;
+	}
+	ProcInfo *lastProc = getProc(groupInfo, groupInfo->config.procNum - 1);
+	return lastProc == NULL ? INVALID_STATUS : lastProc->exitStatus;
 }
 
-int getExitStatusAt(int groupId, int procId)	//TODO: support signal exit
+int getExitStatusAt(int groupId, int procIndex)	//TODO: support signal exit
 {
-	return getProc(getGroup(groupTable, groupId), procId)->exitStatus;
+	ProcInfo *procInfo = getProc(getGroup(groupTable, groupId), procIndex);
+	return procInfo == NULL ? INVALID_STATUS : procInfo->exitStatus;
 }
 
 char *getOutMessage(int groupId)
 {
-	return getGroup(groupTable, groupId)->outMessage;
+	GroupInfo *groupInfo = getGroup(groupTable, groupId);
+	return groupInfo == NULL ? "" : groupInfo->outMessage;
+}
+
+int getPID(int groupId, int procIndex)
+{
+	ProcInfo *procInfo = getProc(getGroup(groupTable, groupId), procIndex);
+	return procInfo == NULL ? -1 : procInfo->pid;
 }

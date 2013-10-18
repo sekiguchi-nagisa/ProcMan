@@ -45,9 +45,11 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 			return -1;
 		}
 	}
-	for(i = 0; i < procNum && (pid[i] = fork()) > 0; i++);
+	for(i = 0; i < procNum && (pid[i] = fork()) > 0; i++) {
+		groupInfo->procInfoArray[i]->pid = pid[i];
+	}
 
-	if(i == procNum) {
+	if(i == procNum) {	// parent process
 		closeAllPipe(procNum, pipefdArray);
 		if(groupInfo->config.invokeType == SYNC_INVOKE) {
 			for(i = 0; i < procNum; i++) {
@@ -63,23 +65,66 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 					procInfo->exitStatus = WTERMSIG(status);
 				}
 			}
+		} else {
+			// TODO: asyn invoke
 		}
 		return 0;
-	} else if(pid[i] == 0) {
+	} else if(pid[i] == 0) {	// child process
 		ProcInfo *procInfo = groupInfo->procInfoArray[i];
-		if(procNum > 1) {
-			if(i == 0) {
+		if(i == 0) { // first proc
+			if(procInfo->rconfigs[0] != NULL) {	// in redirect
+				char *fileName = procInfo->rconfigs[0]->fileName;
+				FILE *fp;
+				if(fileName != NULL && (fp = fopen(fileName, "rb")) != NULL) {
+					int fd = fileno(fp);
+					dup2(fd, STDIN_FILENO);
+					fclose(fp);
+				}
+			}
+			if(procNum > 1) {
 				dup2(pipefdArray[i][WRITE_PIPE], STDOUT_FILENO);
-			} else if(i == procNum - 1) {
+			}
+		}
+		if(i > 0 && i < procNum - 1) { // other proc
+			dup2(pipefdArray[i - 1][READ_PIPE], STDIN_FILENO);
+			dup2(pipefdArray[i][WRITE_PIPE], STDOUT_FILENO);
+		}
+		if(i == procNum - 1) { // last proc
+			if(procNum > 1) {
 				dup2(pipefdArray[i - 1][READ_PIPE], STDIN_FILENO);
-			} else {
-				dup2(pipefdArray[i - 1][READ_PIPE], STDIN_FILENO);
-				dup2(pipefdArray[i][WRITE_PIPE], STDOUT_FILENO);
+			}
+			// out & err redirect
+			int i;
+			for(i = 1; i < 3; i++) {	//TODO: other fd
+				int outFileNo = i;
+				RedirectConfig *rconfig = procInfo->rconfigs[i];
+				if(rconfig == NULL) {
+					continue;
+				}
+				if(rconfig->targetType == FILE_TARGET) {	// redirect to file
+					FILE *fp;
+					char *mode = (rconfig->append == ENABLE ? "ab" : "wb");
+					if(rconfig->fileName != NULL &&
+							(fp = fopen(rconfig->fileName, mode)) != NULL) {
+						int fd = fileno(fp);
+						dup2(fd, outFileNo);
+						fclose(fp);
+					}
+				} else if(rconfig->targetType == FD_TARGET) {	// redirect to fd
+					int fd = rconfig->fd;
+					if(abs(outFileNo - fd) == 1) {
+						dup2(fd, outFileNo);
+					}
+				}
+			}
+			if(groupInfo->config.msgRedir == ENABLE) {	// msg redirect
+
 			}
 		}
 		closeAllPipe(procNum, pipefdArray);
 		execv(procInfo->cmds[0], procInfo->cmds);
 		perror("execution error");
+		fprintf(stderr, "executed cmd: %s\n", procInfo->cmds[0]);
 		return -1;
 	} else {
 		perror("child process error");

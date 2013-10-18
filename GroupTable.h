@@ -6,16 +6,14 @@
 #define MAX_TABLE_SIZE 256
 #define MAX_CMD_SIZE 256
 
-// exit type
-#define NORMAL_EXIT 0
-#define INTR_EXIT 1
-
 typedef struct {
-	int procId;
+	int procIndex;
+	int pid;
 	int exitType;
 	int exitStatus;
+	int cmdNum;
 	char **cmds;
-	ProcConfig config;
+	RedirectConfig *rconfigs[3];
 } ProcInfo;
 
 typedef struct {
@@ -38,7 +36,18 @@ int addNewGroupToTable(GroupTable *table, GroupConfig config);
 GroupInfo *getGroup(GroupTable *table, int groupId);
 int deleteGroupFromTable(GroupTable *table, int groupId);
 
-int addNewProcToGroup(GroupInfo *group, ProcConfig config, char **cmds);
-ProcInfo *getProc(GroupInfo *group, int procId);
+int addNewProcToGroup(GroupInfo *group, int cmdNum, char **cmds);
+ProcInfo *getProc(GroupInfo *group, int procIndex);
+
+// ############# utils #################
+#define CHECK_ALLOCATION(ptr) \
+	do { \
+		if(ptr == NULL) { \
+			fprintf(stderr, "%s: %d ", __FILE__, __LINE__ ); \
+			perror("Memory Allocation failed"); \
+			exit(1); \
+		} \
+	} while(0)
+
 
 #endif /* GROUPTABLE_H_ */

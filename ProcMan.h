@@ -5,25 +5,47 @@
 #define SYNC_INVOKE  0
 #define ASYNC_INVOKE 1
 
+// exit type
+#define NORMAL_EXIT 0
+#define INTR_EXIT   1
+
+// exit status
+#define INVALID_STATUS 999
+
+// flag
+#define DISABLE 0
+#define ENABLE  1
+
+// redirect target Type
+#define NO_TARGET   0
+#define FILE_TARGET 1
+#define FD_TARGET   2
+
+typedef struct {
+	int targetType;
+	int append;
+	int fd;
+	char *fileName;
+} RedirectConfig;
+
 typedef struct {
 	int procNum;
 	int invokeType;
+	int msgRedir;	// stdout to variable
+	long timeout;
 	// TODO: callback function
 } GroupConfig;
 
-typedef struct {
-	int cmdNum;
-} ProcConfig;
-
-
 int initContext();
 int createProcGroup(GroupConfig config);
-int addProcToGroup(int groupId, ProcConfig config, char **cmds);
+int addProcToGroup(int groupId, int cmdNum, char **cmds);
+int setRedirect(int groupId, int procIndex, int fd, RedirectConfig *config);
 int invokeAll(int groupId);
 int deleteProcGroup(int groupId);
 
 int getExitStatus(int groupId);
-int getExitStatusAt(int groupId, int procId);
+int getExitStatusAt(int groupId, int procIndex);
 char *getOutMessage(int groupId);
+int getPID(int groupId, int procIndex);
 
 #endif /* PROCMAN_H_ */
