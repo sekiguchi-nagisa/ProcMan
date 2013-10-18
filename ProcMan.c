@@ -72,7 +72,10 @@ int getExitStatusAt(int groupId, int procIndex)	//TODO: support signal exit
 char *getOutMessage(int groupId)
 {
 	GroupInfo *groupInfo = getGroup(groupTable, groupId);
-	return groupInfo == NULL ? "" : groupInfo->outMessage;
+	if(groupInfo == NULL) {
+		return "";
+	}
+	return groupInfo->outMessage == NULL ? "" : groupInfo->outMessage;
 }
 
 int getPID(int groupId, int procIndex)

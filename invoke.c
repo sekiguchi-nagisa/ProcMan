@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -11,6 +12,20 @@
 #define READ_PIPE  0
 #define WRITE_PIPE 1
 
+#define BUFFER_SIZE 256
+
+struct __bufferEntry {
+	int index;
+	int size;
+	char *buf;
+	struct __bufferEntry *nextEntry;
+};
+
+typedef struct {
+	struct __bufferEntry *firstEntry;
+	struct __bufferEntry *lastEntry;
+} MessageBuffer;
+
 static void closeAllPipe(int arraySize, int pipefdArray[][2])
 {
 	int i;
@@ -18,6 +33,90 @@ static void closeAllPipe(int arraySize, int pipefdArray[][2])
 		close(pipefdArray[i][0]);
 		close(pipefdArray[i][1]);
 	}
+}
+
+static void redirectTo(RedirectConfig *rconfig, int outFileNo)
+{
+	if(rconfig == NULL) {
+		return;
+	}
+	if(rconfig->targetType == FILE_TARGET) {	// redirect to file
+		FILE *fp;
+		char *mode = (rconfig->append == ENABLE ? "ab" : "wb");
+		if(rconfig->fileName != NULL) {
+			if((fp = fopen(rconfig->fileName, mode)) != NULL) {
+				int fd = fileno(fp);
+				dup2(fd, outFileNo);
+				fclose(fp);
+			} else {
+				perror("file open error at output redir");
+			}
+		}
+	} else if(rconfig->targetType == FD_TARGET) {	// redirect to fd
+		int fd = rconfig->fd;
+		if(abs(outFileNo - fd) == 1) {
+			dup2(fd, outFileNo);
+		}
+	}
+}
+
+static MessageBuffer *createBuffer()
+{
+	MessageBuffer *bufferList = (MessageBuffer *)malloc(sizeof(MessageBuffer));
+	bufferList->firstEntry = NULL;
+	bufferList->lastEntry = NULL;
+	return bufferList;
+}
+
+static void appendBuf(MessageBuffer *bufferList, char *buf, int index, int bufferSize)
+{
+	if(bufferList == NULL) {
+		fprintf(stderr, "empty Message Buffer\n");
+		return;
+	}
+	if(buf == NULL) {
+		fprintf(stderr, "empty Buffer\n");
+		return;
+	}
+	struct __bufferEntry *entry = (struct __bufferEntry *)malloc(sizeof(struct __bufferEntry));
+	entry->index = index;
+	entry->size = bufferSize;
+	entry->buf = (char *)malloc(sizeof(char) * BUFFER_SIZE);
+	int i;
+	for(i = 0; i < BUFFER_SIZE; i++) {
+		entry->buf[i] = buf[i];
+	}
+	entry->nextEntry = NULL;
+	if(bufferList->firstEntry == NULL) {
+		bufferList->firstEntry = entry;
+		bufferList->lastEntry = entry;
+	} else {
+		bufferList->lastEntry->nextEntry = entry;
+		bufferList->lastEntry = entry;
+	}
+}
+
+static char *convertToMessage(MessageBuffer *bufferList)
+{
+	if(bufferList == NULL) {
+		fprintf(stderr, "empty Message Buffer\n");
+		return NULL;
+	}
+	int entrySize = bufferList->lastEntry->index;
+	char *message = (char *)malloc(sizeof(char) * BUFFER_SIZE * entrySize);
+	struct __bufferEntry *entry = bufferList->firstEntry;
+	int index = 0;
+	while(entry != NULL) {
+		int i;
+		int size = entry->size;
+		for(i = 0; i < size; i++) {
+			message[index] = entry->buf[i];
+			index++;
+		}
+		entry = entry->nextEntry;
+	}
+	free(bufferList);
+	return message;
 }
 
 int verifyGroup(GroupInfo *groupInfo)
@@ -50,8 +149,22 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 	}
 
 	if(i == procNum) {	// parent process
-		closeAllPipe(procNum, pipefdArray);
 		if(groupInfo->config.invokeType == SYNC_INVOKE) {
+			if(groupInfo->config.msgRedir == ENABLE &&
+					groupInfo->procInfoArray[procNum - 1]->rconfigs[STDOUT_FILENO] == NULL) {
+				int fd = pipefdArray[procNum - 1][READ_PIPE];
+				close(pipefdArray[procNum - 1][WRITE_PIPE]);
+				MessageBuffer *bufferList = createBuffer();
+				char buf[BUFFER_SIZE];
+				int size;
+				int count = 0;
+				while((size = read(fd, &buf, BUFFER_SIZE)) > 0) {
+					appendBuf(bufferList, buf, ++count, size);
+				}
+				groupInfo->outMessage = convertToMessage(bufferList);
+			}
+
+			closeAllPipe(procNum, pipefdArray);
 			for(i = 0; i < procNum; i++) {
 				int status;
 				ProcInfo *procInfo = groupInfo->procInfoArray[i];
@@ -75,10 +188,14 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 			if(procInfo->rconfigs[0] != NULL) {	// in redirect
 				char *fileName = procInfo->rconfigs[0]->fileName;
 				FILE *fp;
-				if(fileName != NULL && (fp = fopen(fileName, "rb")) != NULL) {
-					int fd = fileno(fp);
-					dup2(fd, STDIN_FILENO);
-					fclose(fp);
+				if(fileName != NULL) {
+					if((fp = fopen(fileName, "rb")) != NULL) {
+						int fd = fileno(fp);
+						dup2(fd, STDIN_FILENO);
+						fclose(fp);
+					} else {
+						perror("file open error at input redir");
+					}
 				}
 			}
 			if(procNum > 1) {
@@ -87,6 +204,8 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 		}
 		if(i > 0 && i < procNum - 1) { // other proc
 			dup2(pipefdArray[i - 1][READ_PIPE], STDIN_FILENO);
+			// err redirect
+			redirectTo(procInfo->rconfigs[STDERR_FILENO], STDERR_FILENO);
 			dup2(pipefdArray[i][WRITE_PIPE], STDOUT_FILENO);
 		}
 		if(i == procNum - 1) { // last proc
@@ -94,31 +213,12 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 				dup2(pipefdArray[i - 1][READ_PIPE], STDIN_FILENO);
 			}
 			// out & err redirect
-			int i;
-			for(i = 1; i < 3; i++) {	//TODO: other fd
-				int outFileNo = i;
-				RedirectConfig *rconfig = procInfo->rconfigs[i];
-				if(rconfig == NULL) {
-					continue;
-				}
-				if(rconfig->targetType == FILE_TARGET) {	// redirect to file
-					FILE *fp;
-					char *mode = (rconfig->append == ENABLE ? "ab" : "wb");
-					if(rconfig->fileName != NULL &&
-							(fp = fopen(rconfig->fileName, mode)) != NULL) {
-						int fd = fileno(fp);
-						dup2(fd, outFileNo);
-						fclose(fp);
-					}
-				} else if(rconfig->targetType == FD_TARGET) {	// redirect to fd
-					int fd = rconfig->fd;
-					if(abs(outFileNo - fd) == 1) {
-						dup2(fd, outFileNo);
-					}
-				}
-			}
-			if(groupInfo->config.msgRedir == ENABLE) {	// msg redirect
-
+			redirectTo(procInfo->rconfigs[STDOUT_FILENO], STDOUT_FILENO);
+			redirectTo(procInfo->rconfigs[STDERR_FILENO], STDERR_FILENO);
+			// msg redirect
+			if(groupInfo->config.msgRedir == ENABLE &&
+					procInfo->rconfigs[STDOUT_FILENO] == NULL) {
+				dup2(pipefdArray[i][WRITE_PIPE], STDOUT_FILENO);
 			}
 		}
 		closeAllPipe(procNum, pipefdArray);

@@ -32,6 +32,7 @@ int addNewGroupToTable(GroupTable *table, GroupConfig config)
 	groupInfo->groupId = ++count;
 	groupInfo->config = config;
 	groupInfo->procInfoArray = (ProcInfo **)malloc(sizeof(ProcInfo *) * groupInfo->config.procNum);
+	groupInfo->outMessage = NULL;
 	CHECK_ALLOCATION(groupInfo->procInfoArray);
 	for(i = 0; i < groupInfo->config.procNum; i++) {
 		groupInfo->procInfoArray[i] = NULL;
