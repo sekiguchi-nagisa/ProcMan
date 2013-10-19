@@ -16,7 +16,7 @@
 #define DISABLE 0
 #define ENABLE  1
 
-// redirect target Type
+// redirect target type
 #define NO_TARGET   0
 #define FILE_TARGET 1
 #define FD_TARGET   2
@@ -26,7 +26,7 @@ typedef struct {
 	int append;
 	int fd;
 	char *fileName;
-} RedirectConfig;
+} RedirConfig;
 
 typedef struct {
 	int procNum;
@@ -39,7 +39,7 @@ typedef struct {
 int initContext();
 int createProcGroup(GroupConfig config);
 int addProcToGroup(int groupId, int cmdNum, char **cmds);
-int setRedirect(int groupId, int procIndex, int fd, RedirectConfig *config);
+int setRedirect(int groupId, int procIndex, int fd, RedirConfig *config);
 int invokeAll(int groupId);
 int deleteProcGroup(int groupId);
 

@@ -4,6 +4,7 @@
 
 #include "GroupTable.h"
 #include "ProcMan.h"
+#include "verify.h"
 
 #define GEN_GRUOP_INDEX(id) ((id - 1) % MAX_TABLE_SIZE)
 
@@ -155,4 +156,18 @@ ProcInfo *getProc(GroupInfo *group, int procIndex)
 	}
 	fprintf(stderr, "invalid procIndex index: %d\n", procIndex);
 	return NULL;
+}
+
+int addRedirConfigToProc(ProcInfo *procInfo, int fd, RedirConfig *config)
+{
+	if(fd >= 0 && fd < 3) {
+		int index = fd;
+		if(procInfo == NULL) {
+			return -1;
+		}
+		procInfo->rconfigs[index] = config;
+		return 0;
+	}
+	fprintf(stderr, "invalid file descriptor: %d\n", fd);
+	return -1;
 }

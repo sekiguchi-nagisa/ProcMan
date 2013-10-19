@@ -13,7 +13,7 @@ typedef struct {
 	int exitStatus;
 	int cmdNum;
 	char **cmds;
-	RedirectConfig *rconfigs[3];
+	RedirConfig *rconfigs[3];
 } ProcInfo;
 
 typedef struct {
@@ -38,16 +38,6 @@ int deleteGroupFromTable(GroupTable *table, int groupId);
 
 int addNewProcToGroup(GroupInfo *group, int cmdNum, char **cmds);
 ProcInfo *getProc(GroupInfo *group, int procIndex);
-
-// ############# utils #################
-#define CHECK_ALLOCATION(ptr) \
-	do { \
-		if(ptr == NULL) { \
-			fprintf(stderr, "%s: %d ", __FILE__, __LINE__ ); \
-			perror("Memory Allocation failed"); \
-			exit(1); \
-		} \
-	} while(0)
-
+int addRedirConfigToProc(ProcInfo *procInfo, int fd, RedirConfig *config);
 
 #endif /* GROUPTABLE_H_ */

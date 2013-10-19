@@ -24,27 +24,15 @@ int addProcToGroup(int groupId, int cmdNum, char **cmds)
 	return addNewProcToGroup(groupInfo, cmdNum, cmds);
 }
 
-int setRedirect(int groupId, int procIndex, int fd, RedirectConfig *config)
+int setRedirect(int groupId, int procIndex, int fd, RedirConfig *config)
 {
-	if(fd >= 0 && fd < 3) {
-		int index = fd;
-		ProcInfo *procInfo = getProc(getGroup(groupTable, groupId), procIndex);
-		if(procInfo == NULL) {
-			return -1;
-		}
-		procInfo->rconfigs[index] = config;
-		return 0;
-	}
-	fprintf(stderr, "invalid file descriptor: %d\n", fd);
-	return -1;
+	ProcInfo *procInfo = getProc(getGroup(groupTable, groupId), procIndex);
+	return addRedirConfigToProc(procInfo, fd, config);
 }
 
 int invokeAll(int groupId)
 {
 	GroupInfo *groupInfo = getGroup(groupTable, groupId);
-	if(verifyGroup(groupInfo) == -1) {
-		return -1;
-	}
 	return invokeAllProcInGroup(groupInfo);
 }
 
@@ -73,7 +61,7 @@ char *getOutMessage(int groupId)
 {
 	GroupInfo *groupInfo = getGroup(groupTable, groupId);
 	if(groupInfo == NULL) {
-		return "";
+		return NULL;
 	}
 	return groupInfo->outMessage == NULL ? "" : groupInfo->outMessage;
 }

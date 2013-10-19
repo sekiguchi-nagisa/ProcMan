@@ -10,7 +10,6 @@
 
 #include "GroupTable.h"
 
-int verifyGroup(GroupInfo *groupInfo);
 int invokeAllProcInGroup(GroupInfo *groupInfo);
 
 #endif /* INVOKE_H_ */

@@ -8,6 +8,7 @@
 #include "ProcMan.h"
 #include "GroupTable.h"
 #include "invoke.h"
+#include "verify.h"
 
 #define READ_PIPE  0
 #define WRITE_PIPE 1
@@ -35,7 +36,7 @@ static void closeAllPipe(int arraySize, int pipefdArray[][2])
 	}
 }
 
-static void redirectTo(RedirectConfig *rconfig, int outFileNo)
+static void redirectTo(RedirConfig *rconfig, int outFileNo)
 {
 	if(rconfig == NULL) {
 		return;
@@ -50,6 +51,7 @@ static void redirectTo(RedirectConfig *rconfig, int outFileNo)
 				fclose(fp);
 			} else {
 				perror("file open error at output redir");
+				exit(1);
 			}
 		}
 	} else if(rconfig->targetType == FD_TARGET) {	// redirect to fd
@@ -79,9 +81,11 @@ static void appendBuf(MessageBuffer *bufferList, char *buf, int index, int buffe
 		return;
 	}
 	struct __bufferEntry *entry = (struct __bufferEntry *)malloc(sizeof(struct __bufferEntry));
+	CHECK_ALLOCATION(entry);
 	entry->index = index;
 	entry->size = bufferSize;
 	entry->buf = (char *)malloc(sizeof(char) * bufferSize);
+	CHECK_ALLOCATION(entry->buf);
 	int i;
 	for(i = 0; i < bufferSize; i++) {
 		entry->buf[i] = buf[i];
@@ -104,6 +108,7 @@ static char *convertToMessage(MessageBuffer *bufferList)
 	}
 	int entrySize = bufferList->lastEntry->index;
 	char *message = (char *)malloc(sizeof(char) * BUFFER_SIZE * entrySize);
+	CHECK_ALLOCATION(message);
 	struct __bufferEntry *entry = bufferList->firstEntry;
 	int index = 0;
 	while(entry != NULL) {
@@ -119,20 +124,11 @@ static char *convertToMessage(MessageBuffer *bufferList)
 	return message;
 }
 
-int verifyGroup(GroupInfo *groupInfo)
-{
-	int i;
-	for(i = 0; i < groupInfo->config.procNum; i++) {
-		if(groupInfo->procInfoArray[i] == NULL) {
-			fprintf(stderr, "verification error\n");
-			return -1;
-		}
-	}
-	return 0;
-}
-
 int invokeAllProcInGroup(GroupInfo *groupInfo)
 {
+	if(verifyGroup(groupInfo) == -1) {
+		return -1;
+	}
 	int procNum = groupInfo->config.procNum;
 	pid_t pid[procNum];
 	int i = 0;
@@ -150,10 +146,11 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 
 	if(i == procNum) {	// parent process
 		if(groupInfo->config.invokeType == SYNC_INVOKE) {
+			closeAllPipe(procNum - 1, pipefdArray);
+			close(pipefdArray[procNum - 1][WRITE_PIPE]);
 			if(groupInfo->config.msgRedir == ENABLE &&
 					groupInfo->procInfoArray[procNum - 1]->rconfigs[STDOUT_FILENO] == NULL) {
 				int fd = pipefdArray[procNum - 1][READ_PIPE];
-				close(pipefdArray[procNum - 1][WRITE_PIPE]);
 				MessageBuffer *bufferList = createBuffer();
 				char buf[BUFFER_SIZE];
 				int size;
@@ -163,8 +160,8 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 				}
 				groupInfo->outMessage = convertToMessage(bufferList);
 			}
+			close(pipefdArray[procNum - 1][READ_PIPE]);
 
-			closeAllPipe(procNum, pipefdArray);
 			for(i = 0; i < procNum; i++) {
 				int status;
 				ProcInfo *procInfo = groupInfo->procInfoArray[i];
@@ -195,6 +192,7 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 						fclose(fp);
 					} else {
 						perror("file open error at input redir");
+						exit(1);
 					}
 				}
 			}
@@ -225,7 +223,7 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 		execv(procInfo->cmds[0], procInfo->cmds);
 		perror("execution error");
 		fprintf(stderr, "executed cmd: %s\n", procInfo->cmds[0]);
-		return -1;
+		exit(1);
 	} else {
 		perror("child process error");
 		return -1;
