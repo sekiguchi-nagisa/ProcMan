@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <pthread.h>
+#include <signal.h>
 
 #include "ProcMan.h"
 #include "GroupTable.h"
@@ -26,6 +28,14 @@ typedef struct {
 	struct __bufferEntry *firstEntry;
 	struct __bufferEntry *lastEntry;
 } MessageBuffer;
+
+typedef struct {
+	int groupId;
+	int procNum;
+	int timeout;
+	int *pids;
+	ExitHandler handler;
+} MonitoringTargetInfo;
 
 static void closeAllPipe(int arraySize, int pipefdArray[][2])
 {
@@ -124,6 +134,41 @@ static char *convertToMessage(MessageBuffer *bufferList)
 	return message;
 }
 
+void *monitorGroup(void *targetInfo)
+{
+	if(targetInfo == NULL) {
+		fprintf(stderr, "empty targetINfo");
+		return NULL;
+	}
+	int i;
+	GroupInfo *groupInfo = (GroupInfo *)targetInfo;
+	MonitoringTargetInfo info;
+	info.groupId = groupInfo->groupId;
+	info.procNum = groupInfo->config.procNum;
+	info.timeout = groupInfo->config.timeout;
+	info.pids = (int *)malloc(sizeof(int));
+	for(i = 0; i < info.procNum; i++) {
+		info.pids[i] = groupInfo->procInfoArray[i]->pid;
+	}
+	info.handler = groupInfo->handler;
+
+	// timeout
+	if(info.timeout > 0) {
+		sleep(info.timeout);
+		for(i = 0; i < info.procNum; i++) {
+			kill(info.pids[i], SIGKILL);
+		}
+		fprintf(stderr, "process timeout\n");
+		info.handler(ALARM_TERM);
+		return NULL;
+	}
+
+	// wait exit
+
+
+	return NULL;
+}
+
 int invokeAllProcInGroup(GroupInfo *groupInfo)
 {
 	if(verifyGroup(groupInfo) == -1) {
@@ -145,7 +190,7 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 	}
 
 	if(i == procNum) {	// parent process
-		if(groupInfo->config.invokeType == SYNC_INVOKE) {
+		if(groupInfo->config.invokeType == SYNC_INVOKE) { // synchronous invocation
 			closeAllPipe(procNum - 1, pipefdArray);
 			close(pipefdArray[procNum - 1][WRITE_PIPE]);
 			if(groupInfo->config.msgRedir == ENABLE &&
@@ -175,8 +220,15 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 					procInfo->exitStatus = WTERMSIG(status);
 				}
 			}
-		} else {
-			// TODO: asyn invoke
+		} else {	// asynchronous invocation
+			closeAllPipe(procNum, pipefdArray);
+			pthread_t thread;
+			int ret = pthread_create(&thread, NULL, monitorGroup, (void *)groupInfo);
+			if(ret != 0) {
+				perror("thread creation failed");
+				exit(1);
+			}
+			pthread_detach(thread);
 		}
 		return 0;
 	} else if(pid[i] == 0) {	// child process
@@ -228,6 +280,5 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 		perror("child process error");
 		return -1;
 	}
-	return 0;
 }
 

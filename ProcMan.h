@@ -21,6 +21,11 @@
 #define FILE_TARGET 1
 #define FD_TARGET   2
 
+// exit handler flag
+#define NORMAL_TERM 0
+#define ERROR_TERM  1
+#define ALARM_TERM  2
+
 typedef struct {
 	int targetType;
 	int append;
@@ -32,14 +37,16 @@ typedef struct {
 	int procNum;
 	int invokeType;
 	int msgRedir;	// stdout to variable
-	long timeout;
-	// TODO: callback function
+	int timeout;	// second
 } GroupConfig;
+
+typedef void (*ExitHandler)(int);
 
 int initContext();
 int createProcGroup(GroupConfig config);
 int addProcToGroup(int groupId, int cmdNum, char **cmds);
 int setRedirect(int groupId, int procIndex, int fd, RedirConfig *config);
+int setExitHandler(int groupId, ExitHandler handler);
 int invokeAll(int groupId);
 int deleteProcGroup(int groupId);
 

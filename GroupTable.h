@@ -21,6 +21,7 @@ typedef struct {
 	GroupConfig config;
 	ProcInfo **procInfoArray;
 	char *outMessage;
+	ExitHandler handler;
 } GroupInfo;
 
 typedef struct {
@@ -34,6 +35,7 @@ GroupTable *createGroupTable();
 
 int addNewGroupToTable(GroupTable *table, GroupConfig config);
 GroupInfo *getGroup(GroupTable *table, int groupId);
+int addExitHandlerToGroup(GroupInfo *group, ExitHandler handler);
 int deleteGroupFromTable(GroupTable *table, int groupId);
 
 int addNewProcToGroup(GroupInfo *group, int cmdNum, char **cmds);

@@ -30,6 +30,12 @@ int setRedirect(int groupId, int procIndex, int fd, RedirConfig *config)
 	return addRedirConfigToProc(procInfo, fd, config);
 }
 
+int setExitHandler(int groupId, ExitHandler handler)
+{
+	GroupInfo *groupInfo = getGroup(groupTable, groupId);
+	return addExitHandlerToGroup(groupInfo, handler);
+}
+
 int invokeAll(int groupId)
 {
 	GroupInfo *groupInfo = getGroup(groupTable, groupId);

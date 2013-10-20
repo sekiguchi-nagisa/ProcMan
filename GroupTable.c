@@ -34,6 +34,7 @@ int addNewGroupToTable(GroupTable *table, GroupConfig config)
 	groupInfo->config = config;
 	groupInfo->procInfoArray = (ProcInfo **)malloc(sizeof(ProcInfo *) * groupInfo->config.procNum);
 	groupInfo->outMessage = NULL;
+	groupInfo->handler = NULL;
 	CHECK_ALLOCATION(groupInfo->procInfoArray);
 	for(i = 0; i < groupInfo->config.procNum; i++) {
 		groupInfo->procInfoArray[i] = NULL;
@@ -73,6 +74,25 @@ GroupInfo *getGroup(GroupTable *table, int groupId)
 	}
 	fprintf(stderr, "invalid group id: %d\n", groupId);
 	return NULL;
+}
+
+int addExitHandlerToGroup(GroupInfo *group, ExitHandler handler)
+{
+	if(group == NULL) {
+		fprintf(stderr, "GroupInfo is NULL\n");
+		return -1;
+	}
+	if(handler == NULL) {
+		fprintf(stderr, "ExitHandler is NULL\n");
+		return -1;
+	}
+
+	if(group->config.invokeType != ASYNC_INVOKE) {
+		fprintf(stderr, "invocation type is sync\n");
+		return -1;
+	}
+	group->handler = handler;
+	return 0;
 }
 
 int deleteGroupFromTable(GroupTable *table, int groupId)
@@ -163,6 +183,9 @@ int addRedirConfigToProc(ProcInfo *procInfo, int fd, RedirConfig *config)
 	if(fd >= 0 && fd < 3) {
 		int index = fd;
 		if(procInfo == NULL) {
+			return -1;
+		}
+		if(verifyRedirConfig(fd, config) == -1) {
 			return -1;
 		}
 		procInfo->rconfigs[index] = config;
