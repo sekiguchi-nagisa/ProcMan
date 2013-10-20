@@ -137,7 +137,7 @@ static char *convertToMessage(MessageBuffer *bufferList)
 void *monitorGroup(void *targetInfo)
 {
 	if(targetInfo == NULL) {
-		fprintf(stderr, "empty targetINfo");
+		fprintf(stderr, "empty targetInfo");
 		return NULL;
 	}
 	int i;
@@ -146,7 +146,8 @@ void *monitorGroup(void *targetInfo)
 	info.groupId = groupInfo->groupId;
 	info.procNum = groupInfo->config.procNum;
 	info.timeout = groupInfo->config.timeout;
-	info.pids = (int *)malloc(sizeof(int));
+	info.pids = (int *)malloc(sizeof(int) * info.procNum);
+	CHECK_ALLOCATION(info.pids);
 	for(i = 0; i < info.procNum; i++) {
 		info.pids[i] = groupInfo->procInfoArray[i]->pid;
 	}
@@ -266,8 +267,8 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 			redirectTo(procInfo->rconfigs[STDOUT_FILENO], STDOUT_FILENO);
 			redirectTo(procInfo->rconfigs[STDERR_FILENO], STDERR_FILENO);
 			// msg redirect
-			if(groupInfo->config.msgRedir == ENABLE &&
-					procInfo->rconfigs[STDOUT_FILENO] == NULL) {
+			if(groupInfo->config.invokeType == SYNC_INVOKE &&
+					groupInfo->config.msgRedir == ENABLE && procInfo->rconfigs[STDOUT_FILENO] == NULL) {
 				dup2(pipefdArray[i][WRITE_PIPE], STDOUT_FILENO);
 			}
 		}
