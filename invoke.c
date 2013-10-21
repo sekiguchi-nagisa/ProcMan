@@ -8,7 +8,7 @@
 #include <signal.h>
 
 #include "ProcMan.h"
-#include "GroupTable.h"
+#include "GlobalContext.h"
 #include "invoke.h"
 #include "verify.h"
 
@@ -34,8 +34,12 @@ typedef struct {
 	int procNum;
 	int timeout;
 	int *pids;
+	struct __cmdsWrapper {
+		int cmdNum;
+		char **cmds;
+	} *wrapperArray;
 	ExitHandler handler;
-} MonitoringTargetInfo;
+} MonitorInfo;
 
 static void closeAllPipe(int arraySize, int pipefdArray[][2])
 {
@@ -134,33 +138,55 @@ static char *convertToMessage(MessageBuffer *bufferList)
 	return message;
 }
 
+static MonitorInfo *createMonitorInfo(GroupInfo *groupInfo)
+{
+	MonitorInfo *monitorInfo = (MonitorInfo *)malloc(sizeof(MonitorInfo));
+	CHECK_ALLOCATION(monitorInfo);
+	monitorInfo->groupId = groupInfo->groupId;
+	monitorInfo->procNum = groupInfo->config.procNum;
+	monitorInfo->timeout = groupInfo->config.timeout;
+	int procNum = monitorInfo->procNum;
+	monitorInfo->pids = (int *)malloc(sizeof(int) * procNum);
+	CHECK_ALLOCATION(monitorInfo->pids);
+	monitorInfo->wrapperArray = (struct __cmdsWrapper *)malloc(sizeof(struct __cmdsWrapper) * procNum);
+	CHECK_ALLOCATION(monitorInfo->wrapperArray);
+	int i;
+	for(i = 0; i < procNum; i++) {
+		ProcInfo *procInfo = getProcInfo(groupInfo, i);
+		monitorInfo->pids[i] = procInfo->pid;
+		monitorInfo->wrapperArray[i].cmdNum = procInfo->cmdNum;
+		int cmdNum = monitorInfo->wrapperArray[i].cmdNum;
+		monitorInfo->wrapperArray[i].cmds = (char **)malloc(sizeof(char *) * cmdNum);
+		CHECK_ALLOCATION(monitorInfo->wrapperArray[i].cmds);
+		char **cmds = monitorInfo->wrapperArray[i].cmds;
+		int j;
+		for(j = 0; j < cmdNum; j++) {
+			cmds[j] = (char *)malloc(sizeof(char) * 256);
+			CHECK_ALLOCATION(cmds[j]);
+			strncpy(cmds[j], procInfo->cmds[j], 256);
+		}
+	}
+	monitorInfo->handler = groupInfo->handler;
+	return monitorInfo;
+}
+
 void *monitorGroup(void *targetInfo)
 {
 	if(targetInfo == NULL) {
 		fprintf(stderr, "empty targetInfo");
 		return NULL;
 	}
-	int i;
-	GroupInfo *groupInfo = (GroupInfo *)targetInfo;
-	MonitoringTargetInfo info;
-	info.groupId = groupInfo->groupId;
-	info.procNum = groupInfo->config.procNum;
-	info.timeout = groupInfo->config.timeout;
-	info.pids = (int *)malloc(sizeof(int) * info.procNum);
-	CHECK_ALLOCATION(info.pids);
-	for(i = 0; i < info.procNum; i++) {
-		info.pids[i] = groupInfo->procInfoArray[i]->pid;
-	}
-	info.handler = groupInfo->handler;
+	MonitorInfo *info = (MonitorInfo *)targetInfo;
 
 	// timeout
-	if(info.timeout > 0) {
-		sleep(info.timeout);
-		for(i = 0; i < info.procNum; i++) {
-			kill(info.pids[i], SIGKILL);
+	int i;
+	if(info->timeout > 0) {
+		sleep(info->timeout);
+		for(i = 0; i < info->procNum; i++) {
+			kill(info->pids[i], SIGKILL);
 		}
 		fprintf(stderr, "process timeout\n");
-		info.handler(ALARM_TERM);
+		info->handler(ALARM_TERM);
 		return NULL;
 	}
 
@@ -224,7 +250,8 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 		} else {	// asynchronous invocation
 			closeAllPipe(procNum, pipefdArray);
 			pthread_t thread;
-			int ret = pthread_create(&thread, NULL, monitorGroup, (void *)groupInfo);
+			MonitorInfo *monitorInfo = createMonitorInfo(groupInfo);
+			int ret = pthread_create(&thread, NULL, monitorGroup, monitorInfo);
 			if(ret != 0) {
 				perror("thread creation failed");
 				exit(1);

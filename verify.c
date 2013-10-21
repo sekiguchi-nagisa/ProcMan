@@ -4,7 +4,7 @@
 
 #include "ProcMan.h"
 #include "verify.h"
-#include "GroupTable.h"
+#include "GlobalContext.h"
 
 int verifyGroup(GroupInfo *groupInfo)
 {
@@ -14,7 +14,7 @@ int verifyGroup(GroupInfo *groupInfo)
 	}
 	int i;
 	for(i = 0; i < groupInfo->config.procNum; i++) {
-		ProcInfo *procInfo = getProc(groupInfo, i);
+		ProcInfo *procInfo = getProcInfo(groupInfo, i);
 		if(procInfo == NULL || verifyProc(procInfo) == -1) {
 			fprintf(stderr, "groupInfo verification error\n");
 			return -1;

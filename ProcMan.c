@@ -1,71 +1,71 @@
 #include <stdio.h>
 
 #include "ProcMan.h"
-#include "GroupTable.h"
+#include "GlobalContext.h"
 #include "invoke.h"
 
 
-static GroupTable *groupTable = NULL;
+static GlobalContext *context = NULL;
 
 int initContext()
 {
-	groupTable = createGroupTable();
+	context = createGlobalContext();
 	return 0;
 }
 
 int createProcGroup(GroupConfig config)
 {
-	return addNewGroupToTable(groupTable, config);
+	return addNewGroupToTable(context, config);
 }
 
 int addProcToGroup(int groupId, int cmdNum, char **cmds)
 {
-	GroupInfo *groupInfo = getGroup(groupTable, groupId);
+	GroupInfo *groupInfo = getGroupInfo(context, groupId);
 	return addNewProcToGroup(groupInfo, cmdNum, cmds);
 }
 
 int setRedirect(int groupId, int procIndex, int fd, RedirConfig *config)
 {
-	ProcInfo *procInfo = getProc(getGroup(groupTable, groupId), procIndex);
+	ProcInfo *procInfo = getProcInfo(getGroupInfo(context, groupId), procIndex);
 	return addRedirConfigToProc(procInfo, fd, config);
 }
 
 int setExitHandler(int groupId, ExitHandler handler)
 {
-	GroupInfo *groupInfo = getGroup(groupTable, groupId);
+	GroupInfo *groupInfo = getGroupInfo(context, groupId);
 	return addExitHandlerToGroup(groupInfo, handler);
 }
 
 int invokeAll(int groupId)
 {
-	GroupInfo *groupInfo = getGroup(groupTable, groupId);
+	GroupInfo *groupInfo = getGroupInfo(context, groupId);
 	return invokeAllProcInGroup(groupInfo);
 }
 
 int deleteProcGroup(int groupId)
 {
-	return deleteGroupFromTable(groupTable, groupId);
+	return deleteGroupFromTable(context, groupId);
 }
 
 int getExitStatus(int groupId)	//TODO: support signal exit
 {
-	GroupInfo *groupInfo = getGroup(groupTable, groupId);
+	GroupInfo *groupInfo = getGroupInfo(context, groupId);
 	if(groupInfo == NULL) {
 		return INVALID_STATUS;
 	}
-	ProcInfo *lastProc = getProc(groupInfo, groupInfo->config.procNum - 1);
+	ProcInfo *lastProc = getProcInfo(groupInfo, groupInfo->config.procNum - 1);
 	return lastProc == NULL ? INVALID_STATUS : lastProc->exitStatus;
 }
 
 int getExitStatusAt(int groupId, int procIndex)	//TODO: support signal exit
 {
-	ProcInfo *procInfo = getProc(getGroup(groupTable, groupId), procIndex);
+	ProcInfo *procInfo = getProcInfo(getGroupInfo(context, groupId), procIndex);
 	return procInfo == NULL ? INVALID_STATUS : procInfo->exitStatus;
 }
 
 char *getOutMessage(int groupId)
 {
-	GroupInfo *groupInfo = getGroup(groupTable, groupId);
+	GroupInfo *groupInfo = getGroupInfo(context, groupId);
 	if(groupInfo == NULL) {
 		return NULL;
 	}
@@ -74,6 +74,6 @@ char *getOutMessage(int groupId)
 
 int getPID(int groupId, int procIndex)
 {
-	ProcInfo *procInfo = getProc(getGroup(groupTable, groupId), procIndex);
+	ProcInfo *procInfo = getProcInfo(getGroupInfo(context, groupId), procIndex);
 	return procInfo == NULL ? -1 : procInfo->pid;
 }

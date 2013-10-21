@@ -1,5 +1,5 @@
-#ifndef GROUPTABLE_H_
-#define GROUPTABLE_H_
+#ifndef GLOBALCONTEXT_H_
+#define GLOBALCONTEXT_H_
 
 #include "ProcMan.h"
 
@@ -7,7 +7,6 @@
 #define MAX_CMD_SIZE 256
 
 typedef struct {
-	int procIndex;
 	int pid;
 	int exitType;
 	int exitStatus;
@@ -29,17 +28,17 @@ typedef struct {
 		GroupInfo *groupInfo;
 		struct __table_entry *nextEntry;
 	} *entrys[MAX_TABLE_SIZE];
-} GroupTable;
+} GlobalContext;
 
-GroupTable *createGroupTable();
+GlobalContext *createGlobalContext();
 
-int addNewGroupToTable(GroupTable *table, GroupConfig config);
-GroupInfo *getGroup(GroupTable *table, int groupId);
-int addExitHandlerToGroup(GroupInfo *group, ExitHandler handler);
-int deleteGroupFromTable(GroupTable *table, int groupId);
+int addNewGroupToTable(GlobalContext *context, GroupConfig config);
+GroupInfo *getGroupInfo(GlobalContext *context, int groupId);
+int addExitHandlerToGroup(GroupInfo *groupInfo, ExitHandler handler);
+int deleteGroupFromTable(GlobalContext *context, int groupId);
 
-int addNewProcToGroup(GroupInfo *group, int cmdNum, char **cmds);
-ProcInfo *getProc(GroupInfo *group, int procIndex);
+int addNewProcToGroup(GroupInfo *groupInfo, int cmdNum, char **cmds);
+ProcInfo *getProcInfo(GroupInfo *groupInfo, int procIndex);
 int addRedirConfigToProc(ProcInfo *procInfo, int fd, RedirConfig *config);
 
-#endif /* GROUPTABLE_H_ */
+#endif /* GLOBALCONTEXT_H_ */

@@ -2,7 +2,7 @@
 #define VERIFY_H_
 
 #include "ProcMan.h"
-#include "GroupTable.h"
+#include "GlobalContext.h"
 
 #define CHECK_ALLOCATION(ptr) \
 	do { \

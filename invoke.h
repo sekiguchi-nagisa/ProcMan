@@ -8,7 +8,7 @@
 #ifndef INVOKE_H_
 #define INVOKE_H_
 
-#include "GroupTable.h"
+#include "GlobalContext.h"
 
 int invokeAllProcInGroup(GroupInfo *groupInfo);
 

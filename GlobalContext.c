@@ -2,26 +2,26 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "GroupTable.h"
+#include "GlobalContext.h"
 #include "ProcMan.h"
 #include "verify.h"
 
 #define GEN_GRUOP_INDEX(id) ((id - 1) % MAX_TABLE_SIZE)
 
-GroupTable *createGroupTable()
+GlobalContext *createGlobalContext()
 {
-	GroupTable *groupTable = (GroupTable *)malloc(sizeof(GroupTable));
-	CHECK_ALLOCATION(groupTable);
+	GlobalContext *context = (GlobalContext *)malloc(sizeof(GlobalContext));
+	CHECK_ALLOCATION(context);
 	int i;
 	for(i = 0; i < MAX_TABLE_SIZE; i++) {
-		groupTable->entrys[i] = NULL;
+		context->entrys[i] = NULL;
 	}
-	return groupTable;
+	return context;
 }
 
-int addNewGroupToTable(GroupTable *table, GroupConfig config)
+int addNewGroupToTable(GlobalContext *context, GroupConfig config)
 {
-	if(table == NULL) {
+	if(context == NULL) {
 		fprintf(stderr, "GroupTable is NULL\n");
 		return -1;
 	}
@@ -46,10 +46,10 @@ int addNewGroupToTable(GroupTable *table, GroupConfig config)
 	newEntry->groupInfo = groupInfo;
 	newEntry->nextEntry = NULL;
 
-	if(table->entrys[index] == NULL) {
-		table->entrys[index] = newEntry;
+	if(context->entrys[index] == NULL) {
+		context->entrys[index] = newEntry;
 	} else {
-		struct __table_entry *curEntry = table->entrys[index];
+		struct __table_entry *curEntry = context->entrys[index];
 		while(curEntry->nextEntry != NULL) {
 			curEntry = curEntry->nextEntry;
 		}
@@ -58,14 +58,14 @@ int addNewGroupToTable(GroupTable *table, GroupConfig config)
 	return groupInfo->groupId;
 }
 
-GroupInfo *getGroup(GroupTable *table, int groupId)
+GroupInfo *getGroupInfo(GlobalContext *context, int groupId)
 {
-	if(table == NULL) {
+	if(context == NULL) {
 		fprintf(stderr, "GroupTable is NULL\n");
 		return NULL;
 	}
 
-	struct __table_entry *curEntry = table->entrys[GEN_GRUOP_INDEX(groupId)];
+	struct __table_entry *curEntry = context->entrys[GEN_GRUOP_INDEX(groupId)];
 	while(curEntry != NULL) {
 		if(curEntry->groupInfo->groupId == groupId) {
 			return curEntry->groupInfo;
@@ -76,9 +76,9 @@ GroupInfo *getGroup(GroupTable *table, int groupId)
 	return NULL;
 }
 
-int addExitHandlerToGroup(GroupInfo *group, ExitHandler handler)
+int addExitHandlerToGroup(GroupInfo *groupInfo, ExitHandler handler)
 {
-	if(group == NULL) {
+	if(groupInfo == NULL) {
 		fprintf(stderr, "GroupInfo is NULL\n");
 		return -1;
 	}
@@ -87,28 +87,28 @@ int addExitHandlerToGroup(GroupInfo *group, ExitHandler handler)
 		return -1;
 	}
 
-	if(group->config.invokeType != ASYNC_INVOKE) {
+	if(groupInfo->config.invokeType != ASYNC_INVOKE) {
 		fprintf(stderr, "invocation type is sync\n");
 		return -1;
 	}
-	group->handler = handler;
+	groupInfo->handler = handler;
 	return 0;
 }
 
-int deleteGroupFromTable(GroupTable *table, int groupId)
+int deleteGroupFromTable(GlobalContext *context, int groupId)
 {
-	if(table == NULL) {
+	if(context == NULL) {
 		fprintf(stderr, "GroupTable is NULL\n");
 		return -1;
 	}
 
 	int index = GEN_GRUOP_INDEX(groupId);
-	struct __table_entry *curEntry = table->entrys[index];
+	struct __table_entry *curEntry = context->entrys[index];
 	struct __table_entry *prevEntry = NULL;
 	while(curEntry != NULL) {
 		if(curEntry->groupInfo->groupId == groupId) {
 			if(prevEntry == NULL) {
-				table->entrys[index] = curEntry->nextEntry;
+				context->entrys[index] = curEntry->nextEntry;
 			} else {
 				prevEntry->nextEntry = curEntry->nextEntry;
 			}
@@ -122,9 +122,9 @@ int deleteGroupFromTable(GroupTable *table, int groupId)
 	return -1;
 }
 
-int addNewProcToGroup(GroupInfo *group, int cmdNum, char **cmds)
+int addNewProcToGroup(GroupInfo *groupInfo, int cmdNum, char **cmds)
 {
-	if(group == NULL) {
+	if(groupInfo == NULL) {
 		fprintf(stderr, "GroupInfo is NULL\n");
 		return -1;
 	}
@@ -147,13 +147,13 @@ int addNewProcToGroup(GroupInfo *group, int cmdNum, char **cmds)
 	}
 	procInfo->cmds[procInfo->cmdNum] = NULL;
 
-	for(i = 0; i < group->config.procNum; i++) {
-		if(group->procInfoArray[i] == NULL) {
-			procInfo->procIndex = i;
-			group->procInfoArray[i] = (ProcInfo *)malloc(sizeof(ProcInfo));
-			CHECK_ALLOCATION(group->procInfoArray[i]);
-			group->procInfoArray[i] = procInfo;
-			return procInfo->procIndex;
+	for(i = 0; i < groupInfo->config.procNum; i++) {
+		if(groupInfo->procInfoArray[i] == NULL) {
+			int index = i;
+			groupInfo->procInfoArray[i] = (ProcInfo *)malloc(sizeof(ProcInfo));
+			CHECK_ALLOCATION(groupInfo->procInfoArray[i]);
+			groupInfo->procInfoArray[i] = procInfo;
+			return index;
 		}
 	}
 	free(procInfo);
@@ -161,15 +161,15 @@ int addNewProcToGroup(GroupInfo *group, int cmdNum, char **cmds)
 	return -1;
 }
 
-ProcInfo *getProc(GroupInfo *group, int procIndex)
+ProcInfo *getProcInfo(GroupInfo *groupInfo, int procIndex)
 {
-	if(group == NULL) {
+	if(groupInfo == NULL) {
 		fprintf(stderr, "GroupInfo is NULL\n");
 		return NULL;
 	}
 
-	if(procIndex >= 0 && procIndex < group->config.procNum) {
-		ProcInfo *procInfo = group->procInfoArray[procIndex];
+	if(procIndex >= 0 && procIndex < groupInfo->config.procNum) {
+		ProcInfo *procInfo = groupInfo->procInfoArray[procIndex];
 		if(procInfo != NULL) {
 			return procInfo;
 		}
