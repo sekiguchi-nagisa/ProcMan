@@ -15,7 +15,7 @@ int initContext()
 
 int createProcGroup(GroupConfig config)
 {
-	return addNewGroupToTable(context, config);
+	return addNewGroupToContext(context, config);
 }
 
 int addProcToGroup(int groupId, int cmdNum, char **cmds)
@@ -44,7 +44,7 @@ int invokeAll(int groupId)
 
 int deleteProcGroup(int groupId)
 {
-	return deleteGroupFromTable(context, groupId);
+	return deleteGroupFromContext(context, groupId);
 }
 
 int getExitStatus(int groupId)	//TODO: support signal exit

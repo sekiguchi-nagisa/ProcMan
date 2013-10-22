@@ -186,12 +186,31 @@ void *monitorGroup(void *targetInfo)
 			kill(info->pids[i], SIGKILL);
 		}
 		fprintf(stderr, "process timeout\n");
-		info->handler(ALARM_TERM);
+		if(info->handler != NULL) {
+			info->handler(ALARM_TERM);
+		}
+		free(info);
 		return NULL;
 	}
 
 	// wait exit
-
+	while(1) { //TODO:
+		int count = 0;
+		for(i = 0; i < info->procNum; i++) {
+			int status;
+			if(waitpid(info->pids[i], &status, WNOHANG) > 0) {
+				count++;
+			}
+		}
+		if(count == info->procNum) {
+			if(info->handler != NULL) {
+				info->handler(NORMAL_TERM);
+			}
+			free(info);
+			return NULL;
+		}
+		sleep(1);
+	}
 
 	return NULL;
 }
@@ -234,6 +253,19 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 			}
 			close(pipefdArray[procNum - 1][READ_PIPE]);
 
+			// timeout
+			if(groupInfo->config.timeout > 0) {
+				sleep(groupInfo->config.timeout);
+				int i;
+				for(i = 0; i < groupInfo->config.procNum; i++) {
+					kill(groupInfo->procInfoArray[i]->pid, SIGKILL);
+				}
+				if(groupInfo->handler != NULL) {
+					groupInfo->handler(ALARM_TERM);
+				}
+				return 0;
+			}
+			// wait for exit
 			for(i = 0; i < procNum; i++) {
 				int status;
 				ProcInfo *procInfo = groupInfo->procInfoArray[i];
@@ -246,6 +278,9 @@ int invokeAllProcInGroup(GroupInfo *groupInfo)
 					procInfo->exitType = INTR_EXIT;
 					procInfo->exitStatus = WTERMSIG(status);
 				}
+			}
+			if(groupInfo->handler != NULL) {
+				groupInfo->handler(NORMAL_TERM);
 			}
 		} else {	// asynchronous invocation
 			closeAllPipe(procNum, pipefdArray);

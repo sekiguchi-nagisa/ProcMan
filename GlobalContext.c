@@ -19,13 +19,16 @@ GlobalContext *createGlobalContext()
 	return context;
 }
 
-int addNewGroupToTable(GlobalContext *context, GroupConfig config)
+int addNewGroupToContext(GlobalContext *context, GroupConfig config)
 {
 	if(context == NULL) {
 		fprintf(stderr, "GroupTable is NULL\n");
 		return -1;
 	}
 
+	if(verifyGroupConfig(config) == -1) {
+		return -1;
+	}
 	static int count = 0;
 	int i;
 	GroupInfo *groupInfo = (GroupInfo *)malloc(sizeof(GroupInfo));
@@ -95,7 +98,7 @@ int addExitHandlerToGroup(GroupInfo *groupInfo, ExitHandler handler)
 	return 0;
 }
 
-int deleteGroupFromTable(GlobalContext *context, int groupId)
+int deleteGroupFromContext(GlobalContext *context, int groupId)
 {
 	if(context == NULL) {
 		fprintf(stderr, "GroupTable is NULL\n");

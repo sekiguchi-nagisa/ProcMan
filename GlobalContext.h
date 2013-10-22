@@ -32,10 +32,10 @@ typedef struct {
 
 GlobalContext *createGlobalContext();
 
-int addNewGroupToTable(GlobalContext *context, GroupConfig config);
+int addNewGroupToContext(GlobalContext *context, GroupConfig config);
 GroupInfo *getGroupInfo(GlobalContext *context, int groupId);
 int addExitHandlerToGroup(GroupInfo *groupInfo, ExitHandler handler);
-int deleteGroupFromTable(GlobalContext *context, int groupId);
+int deleteGroupFromContext(GlobalContext *context, int groupId);
 
 int addNewProcToGroup(GroupInfo *groupInfo, int cmdNum, char **cmds);
 ProcInfo *getProcInfo(GroupInfo *groupInfo, int procIndex);

@@ -97,5 +97,39 @@ int verifyGroupConfig(GroupConfig *config)
 		fprintf(stderr, "empty groupConfig\n");
 		return -1;
 	}
+	// check procNum
+	int procNum = config->procNum;
+	if(procNum <= 0) {
+		fprintf(stderr, "groupConfig verification error\n");
+		fprintf(stderr, "---> invalid proc num: %d\n", procNum);
+		return -1;
+	}
+	// check invokeType
+	int invokeType = config->invokeType;
+	switch(invokeType) {
+	case SYNC_INVOKE: break;
+	case ASYNC_INVOKE: break;
+	default:
+		fprintf(stderr, "groupConfig verification error\n");
+		fprintf(stderr, "---> invalid invocation type: %d\n", invokeType);
+		return -1;
+	}
+	// check mstgRedir
+	int msgRedir = config->msgRedir;
+	switch(msgRedir) {
+	case DISABLE: break;
+	case ENABLE: break;
+	default:
+		fprintf(stderr, "groupConfig verification error\n");
+		fprintf(stderr, "---> invalid msgRedir flag: %d\n", msgRedir);
+		return -1;
+	}
+	// check timeout
+	int timeout = config->timeout;
+	if(timeout < 0) {
+		fprintf(stderr, "groupConfig verification error\n");
+		fprintf(stderr, "---> invalid timeout setting: %d\n", timeout);
+		return -1;
+	}
 	return 0;
 }
